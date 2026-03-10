@@ -48,7 +48,17 @@ def main():
 
     # TODO: Uncomment the following line to pass the first stage
     print(chat.choices[0].message.content)
-
+    message = chat.choices[0].message
+    if message.tool_calls:
+        tool_call = message.tool_calls[0]
+        function_name = tool_call.function.name
+        arguments = json.loads(tool_call.function.arguments)
+        if function_name == "Read":
+            file_path = arguments["file_path"]
+            with open(file_path, "r") as f:
+                print(f.read())
+    else:
+        print(message.content)
 
 if __name__ == "__main__":
     main()
