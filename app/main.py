@@ -1,4 +1,4 @@
-import argparse
+import argarse
 import json
 import os
 import sys
@@ -19,12 +19,16 @@ def main():
 
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
-    chat = client.chat.completions.create(
-        model="anthropic/claude-haiku-4.5",
+    # Conversation memory
+    messages = [{"role": "user", "content": args.p}]
 
-        messages=[{"role": "user", "content": args.p}],
-	tools=[{
-		"type": "function",
+    while True:
+        # Ask the LLM
+        chat = client.chat.completions.create(
+            model="anthropic/claude-haiku-4.5",
+            messages=messages,
+            tools=[{
+                "type": "function",
                 "function": {
                     "name": "Read",
                     "description": "Read and return the contents of a file",
@@ -38,28 +42,45 @@ def main():
                         },
                         "required": ["file_path"],
                     },
-                },		
-	}],
-    )
+                },
+            }],
+        )
 
-    if not chat.choices or len(chat.choices) == 0:
-        raise RuntimeError("no choices in response")
+        if not chat.choices or len(chat.choices) == 0:
+            raise RuntimeError("no choices in response")
 
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!", file=sys.stderr)
+        message = chat.choices[0].message
 
-    message = chat.choices[0].message
+        # Save AI message in conversation history
+        messages.append(message)
 
-    if message.tool_calls:
-        tool_call = message.tool_calls[0]
-        function_name = tool_call.function.name
-        arguments = json.loads(tool_call.function.arguments)
-        if function_name == "Read":
-            file_path = arguments["file_path"]
-            with open(file_path, "r") as f:
-                print(f.read())
-    else:
-        print(message.content)
+        # Debug log (not checked by tester)
+        print("Logs from your program will appear here!", file=sys.stderr)
+
+        # If the AI wants to use a tool
+        if message.tool_calls:
+            tool_call = message.tool_calls[0]
+            function_name = tool_call.function.name
+            arguments = json.loads(tool_call.function.arguments)
+
+            if function_name == "Read":
+                file_path = arguments["file_path"]
+
+                with open(file_path, "r") as f:
+                    content = f.read()
+
+                # Send tool result back to the AI
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": content
+                })
+
+        else:
+            # AI finished reasoning → print final answer
+            print(message.content)
+            break
+
 
 if __name__ == "__main__":
     main()
