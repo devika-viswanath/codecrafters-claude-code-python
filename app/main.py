@@ -72,7 +72,25 @@ def main():
                             },
                         },
                     },
-                }
+                },
+		#BASH TOOL
+		{
+ 			"type": "function",
+ 			"function": {
+   				"name": "Bash",
+   				"description": "Execute a shell command",
+   				"parameters": {
+     					"type": "object",
+     					"required": ["command"],
+     					"properties": {
+      						 "command": {
+         					 "type": "string",
+        					 "description": "The command to execute"
+       						},
+     					},
+   				},
+ 			},
+		}
 
             ],
         )
@@ -126,6 +144,26 @@ def main():
                     "tool_call_id": tool_call.id,
                     "content": f"Successfully wrote to {file_path}"
                 })
+		
+	    elif function_name == "Bash":
+   	        command = arguments["command"]
+
+  
+
+    		result = subprocess.run(
+        		command,
+        		shell=True,
+        		capture_output=True,
+        		text=True
+    		)
+
+    		output = result.stdout if result.stdout else result.stderr
+
+   		 messages.append({
+        		"role": "tool",
+        		"tool_call_id": tool_call.id,
+        		"content": output
+    		})
 
         else:
             # Final answer from AI
@@ -133,15 +171,7 @@ def main():
             break
 
 
-@tool
-def Bash(command: str) -> str:
-    """Execute a shell command
-    :param command: The command to execute
-    """
-    result = subprocess.run(command.split(), capture_output=True, text=True)
-    if result.stderr:
-        return result.stderr
-    return result.stdout
+
 
 if __name__ == "__main__":
     main()
