@@ -212,5 +212,5 @@ https://codecrafters.io/challenges/claude-code
 
 ## Author
 
-Devika Viswanath  
-MCA Student | AI & Software Development
+Devika 
+AI & Software Development
