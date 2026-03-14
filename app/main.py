@@ -1,5 +1,7 @@
 import argparse
 import json
+import subprocess 
+from typing import Any, Callable, get_type_hints
 import os
 import sys
 
@@ -130,6 +132,16 @@ def main():
             print(message.content)
             break
 
+
+@tool
+def Bash(command: str) -> str:
+    """Execute a shell command
+    :param command: The command to execute
+    """
+    result = subprocess.run(command.split(), capture_output=True, text=True)
+    if result.stderr:
+        return result.stderr
+    return result.stdout
 
 if __name__ == "__main__":
     main()
