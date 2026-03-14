@@ -1,14 +1,13 @@
 import argparse
 import json
-import subprocess 
-from typing import Any, Callable, get_type_hints
+import subprocess
 import os
 import sys
 
 from openai import OpenAI
 
 API_KEY = os.getenv("OPENROUTER_API_KEY")
-BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
 
 def main():
@@ -21,12 +20,11 @@ def main():
 
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
-    # Conversation memory
+    # conversation memory
     messages = [{"role": "user", "content": args.p}]
 
     while True:
 
-        # Ask the LLM
         chat = client.chat.completions.create(
             model="anthropic/claude-haiku-4.5",
             messages=messages,
@@ -51,7 +49,7 @@ def main():
                     },
                 },
 
-                # WRITE TOOL (NEW)
+                # WRITE TOOL
                 {
                     "type": "function",
                     "function": {
@@ -73,48 +71,47 @@ def main():
                         },
                     },
                 },
-		#BASH TOOL
-		{
- 			"type": "function",
- 			"function": {
-   				"name": "Bash",
-   				"description": "Execute a shell command",
-   				"parameters": {
-     					"type": "object",
-     					"required": ["command"],
-     					"properties": {
-      						 "command": {
-         					 "type": "string",
-        					 "description": "The command to execute"
-       						},
-     					},
-   				},
- 			},
-		}
+
+                # BASH TOOL
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "Bash",
+                        "description": "Execute a shell command",
+                        "parameters": {
+                            "type": "object",
+                            "required": ["command"],
+                            "properties": {
+                                "command": {
+                                    "type": "string",
+                                    "description": "The command to execute"
+                                }
+                            },
+                        },
+                    },
+                }
 
             ],
         )
 
-        if not chat.choices or len(chat.choices) == 0:
+        if not chat.choices:
             raise RuntimeError("no choices in response")
 
         message = chat.choices[0].message
 
-        # Save assistant response
+        # store assistant response
         messages.append(message)
 
         print("Logs from your program will appear here!", file=sys.stderr)
 
-        # If LLM wants to use a tool
+        # if LLM wants tool
         if message.tool_calls:
 
             tool_call = message.tool_calls[0]
             function_name = tool_call.function.name
             arguments = json.loads(tool_call.function.arguments)
 
-            # -------------------
-            # READ TOOL EXECUTION
-            # -------------------
+            # READ TOOL
             if function_name == "Read":
 
                 file_path = arguments["file_path"]
@@ -128,9 +125,7 @@ def main():
                     "content": content
                 })
 
-            # -------------------
-            # WRITE TOOL EXECUTION
-            # -------------------
+            # WRITE TOOL
             elif function_name == "Write":
 
                 file_path = arguments["file_path"]
@@ -144,33 +139,30 @@ def main():
                     "tool_call_id": tool_call.id,
                     "content": f"Successfully wrote to {file_path}"
                 })
-		
-	    elif function_name == "Bash":
-   	        command = arguments["command"]
 
-  
+            # BASH TOOL
+            elif function_name == "Bash":
 
-    		result = subprocess.run(
-        		command,
-        		shell=True,
-        		capture_output=True,
-        		text=True
-    		)
+                command = arguments["command"]
 
-    		output = result.stdout if result.stdout else result.stderr
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    text=True
+                )
 
-   		 messages.append({
-        		"role": "tool",
-        		"tool_call_id": tool_call.id,
-        		"content": output
-    		})
+                output = result.stdout if result.stdout else result.stderr
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": output
+                })
 
         else:
-            # Final answer from AI
             print(message.content)
             break
-
-
 
 
 if __name__ == "__main__":
